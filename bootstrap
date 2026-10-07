@@ -118,9 +118,27 @@ else
   BOOTSTRAP_SHELL=/bin/sh
 fi
 
-# Determine whether we have a usable version of M4.
+# Determine whether we have a usable version of GNU M4.
 # This rule is pickier than the rule in autoconf's actual configure script.
-m4_version="$($M4 --version | head -1)"
+# In particular, do not let macOS /usr/bin/m4 pass merely because it has a
+# plausible version string.  The temporary autom4te below needs GNU M4
+# semantics and later installs embed this exact executable path.
+m4_identity=$($M4 --gnu --version 2>&1) || {
+    printf '%s\n' \
+      "$me: error: $M4 is not GNU M4 with --gnu support" >&2
+    printf '%s\n' \
+      "$me: set M4 to a GNU M4 executable before bootstrapping Autoconf" >&2
+    exit 1
+}
+case "$m4_identity" in
+  (*"GNU M4"*) ;;
+  (*)
+    printf '%s\n' \
+      "$me: error: $M4 did not identify itself as GNU M4" >&2
+    exit 1
+    ;;
+esac
+m4_version=$(printf '%s\n' "$m4_identity" | sed -n '1p')
 case "$m4_version" in
   ( *\ 0.*                \
   | *\ 1.[0123]           \
