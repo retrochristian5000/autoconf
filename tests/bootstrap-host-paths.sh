@@ -28,11 +28,12 @@ base=${AUTOCONF%/bin/autoconf}
 test -d "$base/lib/Autom4te" || exit 2
 printf '%s\n' "$base" >> "$TEST_DIRS"
 echo aclocal >> "$TEST_LOG"
+printf '%s\n' "$M4" >> "$TEST_M4_CHOICES"
 test "${TEST_FAIL:-0}" != 1
 EOF
 printf '#!/bin/sh\necho automake >> "$TEST_LOG"\n' > "$tmp/tools/automake"
 chmod +x "$base/bootstrap" "$base/build-aux/git-version-gen" "$tmp/tools/"*
-export TEST_LOG="$tmp/log" TEST_DIRS="$tmp/dirs"
+export TEST_LOG="$tmp/log" TEST_DIRS="$tmp/dirs" TEST_M4_CHOICES="$tmp/m4-choices"
 mkdir -p "$tmp/tmp dir with spaces"
 (
     cd "$base"
@@ -58,4 +59,24 @@ fi
 while IFS= read -r path; do
     test ! -e "$path"
 done < "$TEST_DIRS"
-echo 'PASS: bootstrap source paths, GNU M4, and cleanup'
+# An obsolete GNU gm4 must not eclipse a working newer GNU m4.
+cp "$tmp/tools/gm4" "$tmp/tools/m4"
+cat > "$tmp/tools/gm4" <<'EOF'
+#!/bin/sh
+case "$1" in
+    --gnu) [ "${2:-}" = --version ] && { echo 'GNU M4 1.4.15'; exit 0; } ;;
+    --help) echo '--gnu --debugfile'; exit 0 ;;
+esac
+exit 1
+EOF
+chmod +x "$tmp/tools/gm4"
+(
+    cd "$base"
+    unset M4
+    PATH="$tmp/tools:$PATH" ACLOCAL="$tmp/tools/aclocal" \
+        AUTOMAKE="$tmp/tools/automake" /bin/sh ./bootstrap
+)
+test "$(tail -n 1 "$TEST_M4_CHOICES")" = m4 ||
+    { echo 'old GNU gm4 eclipsed working GNU m4' >&2; exit 1; }
+
+echo 'PASS: bootstrap source paths, GNU M4 versions, and cleanup'

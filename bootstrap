@@ -91,13 +91,29 @@ done
 # Let the user choose which version of aclocal, automake, m4, and perl to use.
 : ${ACLOCAL=aclocal}
 : ${AUTOMAKE=automake}
-# Prefer a working GNU gm4 on hosts where plain m4 is not GNU
-# (notably macOS). An explicit M4 is never overridden.
+# One minimum-version rule for both preselection and explicit M4.
+m4_too_old()
+{
+    case "$1" in
+      ( *\ 0.*                \
+      | *\ 1.[0123]           \
+      | *\ 1.[0123].*         \
+      | *\ 1.4.[0123456789]   \
+      | *\ 1.4.1[012345]      \
+      ) return 0 ;;
+      (*) return 1 ;;
+    esac
+}
+
+# Prefer GNU gm4 if it is new enough. Preserve explicit M4 overrides.
 if test "${M4+set}" != set; then
     M4=m4
-    if command -v gm4 >/dev/null 2>&1 &&
-       gm4 --gnu --version 2>/dev/null | grep 'GNU M4' >/dev/null; then
-        M4=gm4
+    if command -v gm4 >/dev/null 2>&1; then
+        gm4_version=$(gm4 --gnu --version 2>/dev/null | sed -n '1p') || gm4_version=
+        case "$gm4_version" in
+          (*"GNU M4"*)
+            if ! m4_too_old "$gm4_version"; then M4=gm4; fi ;;
+        esac
     fi
 fi
 : ${PERL=perl}
@@ -147,17 +163,10 @@ case "$m4_identity" in
     ;;
 esac
 m4_version=$(printf '%s\n' "$m4_identity" | sed -n '1p')
-case "$m4_version" in
-  ( *\ 0.*                \
-  | *\ 1.[0123]           \
-  | *\ 1.[0123].*         \
-  | *\ 1.4.[0123456789]   \
-  | *\ 1.4.1[012345]      \
-  )
+if m4_too_old "$m4_version"; then
     printf '%s\n' "$me: $M4 ($m4_version) is too old" >&2
     exit 1
-    ;;
-esac
+fi
 
 # Substitutions related to the version of M4 available.
 M4_DEBUGFILE=
