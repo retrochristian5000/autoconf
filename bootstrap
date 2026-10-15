@@ -91,7 +91,15 @@ done
 # Let the user choose which version of aclocal, automake, m4, and perl to use.
 : ${ACLOCAL=aclocal}
 : ${AUTOMAKE=automake}
-: ${M4=m4}
+# Prefer a working GNU gm4 on hosts where plain m4 is not GNU
+# (notably macOS). An explicit M4 is never overridden.
+if test "${M4+set}" != set; then
+    M4=m4
+    if command -v gm4 >/dev/null 2>&1 &&
+       gm4 --gnu --version 2>/dev/null | grep 'GNU M4' >/dev/null; then
+        M4=gm4
+    fi
+fi
 : ${PERL=perl}
 export ACLOCAL AUTOMAKE M4 PERL
 
@@ -123,7 +131,7 @@ fi
 # In particular, do not let macOS /usr/bin/m4 pass merely because it has a
 # plausible version string.  The temporary autom4te below needs GNU M4
 # semantics and later installs embed this exact executable path.
-m4_identity=$($M4 --gnu --version 2>&1) || {
+m4_identity=$("$M4" --gnu --version 2>&1) || {
     printf '%s\n' \
       "$me: error: $M4 is not GNU M4 with --gnu support" >&2
     printf '%s\n' \
@@ -154,7 +162,7 @@ esac
 # Substitutions related to the version of M4 available.
 M4_DEBUGFILE=
 M4_GNU=
-m4_help=$($M4 --help)
+m4_help=$("$M4" --help)
 case "$m4_help" in
   (*--debugfile*)
     M4_DEBUGFILE=--debugfile ;;
@@ -203,9 +211,29 @@ fi
 PACKAGE_URL='<<not available>>'
 PACKAGE_TARNAME='<<not available>>'
 
-# Root for temporary partial installation tree.
-ACBOOTDIR=$(mktemp -d acboot.XXXXXXXXXX)
-ACBOOTDIR=$(realpath $ACBOOTDIR)
+# Keep bootstrap-generated tools outside the source checkout.  Their path
+# is embedded in AUTOM4TE with command-line options and must have no spaces.
+# This also permits source trees in directories whose names contain spaces.
+bootstrap_tmpdir=${TMPDIR:-/tmp}
+case "$bootstrap_tmpdir" in
+    *[[:space:]]*) bootstrap_tmpdir=/tmp ;;
+esac
+ACBOOTDIR=$(mktemp -d "$bootstrap_tmpdir/acboot.XXXXXXXXXX") || {
+    printf '%s\n' "$me: error: cannot create bootstrap tool directory" >&2
+    exit 1
+}
+ACBOOTDIR=$(CDPATH= cd -P "$ACBOOTDIR" && pwd)
+case "$ACBOOTDIR" in
+    *[[:space:]]*)
+        printf '%s\n' "$me: error: temporary bootstrap path contains whitespace: $ACBOOTDIR" >&2
+        rm -rf "$ACBOOTDIR"
+        exit 1
+        ;;
+esac
+# Failure and interrupt cleanup must not leave stale temporary installations.
+trap 'rm -rf "$ACBOOTDIR"' 0
+trap 'exit 1' 1 2 3 15
+bootstrap_srcdir=$(pwd -P)
 
 # dosubst options infile outfile -- performs the substitutions that
 # config.status would perform on INFILE, creating OUTFILE.  INFILE is
@@ -249,7 +277,7 @@ mkdir "$ACBOOTDIR"/bin "$ACBOOTDIR"/lib "$ACBOOTDIR"/tmp
         if [ -n "$verbose" ]; then
             printf '%s: creating %s\n' "$me" "$ACBOOTDIR/lib/$sub"
         fi
-        $LN_S ../../lib/$sub .
+        $LN_S "$bootstrap_srcdir/lib/$sub" .
     done
 )
 
@@ -278,5 +306,4 @@ run $ACLOCAL -I m4 -Wall -Werror $subverbose $force
 run $AUTOCONF -Wall -Werror $subverbose $force
 run $AUTOMAKE --add-missing --copy -Wall -Werror $subverbose $force
 
-# Clean up.
-rm -rf "$ACBOOTDIR"
+# The EXIT trap removes the temporary bootstrap installation.
