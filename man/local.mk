@@ -50,13 +50,13 @@ man_common_dep = $(top_srcdir)/man/common.x \
 		 $(top_srcdir)/.version \
 		 $(top_srcdir)/configure.ac
 
-man/autoconf.1:   $(common_dep) man/autoconf.w   man/autoconf.x   $(binsrcdir)/autoconf.in
-man/autoheader.1: $(common_dep) man/autoheader.w man/autoheader.x $(binsrcdir)/autoheader.in
-man/autom4te.1:   $(common_dep) man/autom4te.w   man/autom4te.x   $(binsrcdir)/autom4te.in
-man/autoreconf.1: $(common_dep) man/autoreconf.w man/autoreconf.x $(binsrcdir)/autoreconf.in
-man/autoscan.1:   $(common_dep) man/autoscan.w   man/autoscan.x   $(binsrcdir)/autoscan.in
-man/autoupdate.1: $(common_dep) man/autoupdate.w man/autoupdate.x $(binsrcdir)/autoupdate.in
-man/ifnames.1:    $(common_dep) man/ifnames.w    man/ifnames.x    $(binsrcdir)/ifnames.in
+man/autoconf.1:   $(man_common_dep) man/autoconf.w   man/autoconf.x   $(binsrcdir)/autoconf.in
+man/autoheader.1: $(man_common_dep) man/autoheader.w man/autoheader.x $(binsrcdir)/autoheader.in
+man/autom4te.1:   $(man_common_dep) man/autom4te.w   man/autom4te.x   $(binsrcdir)/autom4te.in
+man/autoreconf.1: $(man_common_dep) man/autoreconf.w man/autoreconf.x $(binsrcdir)/autoreconf.in
+man/autoscan.1:   $(man_common_dep) man/autoscan.w   man/autoscan.x   $(binsrcdir)/autoscan.in
+man/autoupdate.1: $(man_common_dep) man/autoupdate.w man/autoupdate.x $(binsrcdir)/autoupdate.in
+man/ifnames.1:    $(man_common_dep) man/ifnames.w    man/ifnames.x    $(binsrcdir)/ifnames.in
 
 # To generate the manpages, we use help2man, but we don't have it run
 # the built script that corresponds to the manpage.  Instead it runs

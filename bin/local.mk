@@ -46,16 +46,18 @@ MOSTLYCLEANFILES += $(bin_SCRIPTS) bin/*.tmp
 ## don't break it!
 ## Use chmod -w to prevent people from editing the wrong file by accident.
 $(bin_SCRIPTS): Makefile
-	rm -f $@ $@.tmp
-	$(MKDIR_P) $(@D)
-	srcdir=''; \
-	  test -f ./$@.in || srcdir=$(srcdir)/; \
-	  $(edit) $${srcdir}$@.in >$@.tmp
-	chmod +x $@.tmp
-	chmod a-w $@.tmp
-	mv $@.tmp $@
+	set -e; \
+	  trap 'rm -f "$@.tmp"' 0; \
+	  rm -f "$@.tmp"; \
+	  $(MKDIR_P) "$(@D)"; \
+	  srcdir=''; \
+	  test -f "./$@.in" || srcdir='$(srcdir)/'; \
+	  $(edit) "$${srcdir}$@.in" >"$@.tmp"; \
+	  chmod +x "$@.tmp"; \
+	  chmod a-w "$@.tmp"; \
+	  mv -f "$@.tmp" "$@"
 
-bin/autoconf: bin/autoconf.in
+bin/autoconf: $(srcdir)/bin/autoconf.in
 bin/autoheader: $(srcdir)/bin/autoheader.in
 bin/autom4te: $(srcdir)/bin/autom4te.in
 bin/autoreconf: $(srcdir)/bin/autoreconf.in
