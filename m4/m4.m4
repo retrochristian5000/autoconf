@@ -61,6 +61,37 @@ features could be found.  GNU M4 1.4.8+ is supported, and 1.4.16+ is
 recommended; other implementations must pass the same capability probes.
 GNU M4 1.4.15 and some GNU M4/glibc combinations have strstr bugs.])])])
   M4=$ac_cv_path_M4
+  # AC_PATH_PROGS_FEATURE_CHECK skips its feature test when M4 was set
+  # explicitly.  Verify the selected executable in both cases; do not
+  # replace an invalid override with a different tool.
+  ac_m4_resolved=$(command -v "$M4") ||
+    AC_MSG_ERROR([cannot resolve selected M4 executable: $M4])
+  case "$ac_m4_resolved" in
+    (/*) M4=$ac_m4_resolved ;;
+    (*) M4=$(CDPATH= cd -P "$(dirname "$ac_m4_resolved")" && pwd)/$(basename "$ac_m4_resolved") ;;
+  esac
+  AC_MSG_CHECKING([whether $M4 provides required M4 features])
+  ac_m4_verified=no
+  ac_m4_expected=$(printf '%s\n' ok aXa found)
+  ac_m4_actual=$(printf '%s\n' \
+    'changequote(<,>)indir(<ifelse>,<yes>,<yes>,<ok>,<bad>)' \
+    'patsubst(<aba>,<b>,<X>)' \
+    'regexp(<abc>,<b>,<found>)' \
+    | "$M4" --fatal-warning 2>/dev/null) || ac_m4_actual=
+  rm -f conftest.m4f
+  if test "$ac_m4_actual" = "$ac_m4_expected" \
+     && "$M4" -F conftest.m4f </dev/null >/dev/null 2>&1 \
+     && test -s conftest.m4f; then
+    ac_m4_actual=$(printf '%s\n' frozen-ok | \
+      "$M4" --reload-state=conftest.m4f --fatal-warning 2>/dev/null) || ac_m4_actual=
+    if test "$ac_m4_actual" = frozen-ok; then
+      ac_m4_verified=yes
+    fi
+  fi
+  rm -f conftest.m4f
+  AC_MSG_RESULT([$ac_m4_verified])
+  AS_IF([test "$ac_m4_verified" != yes],
+    [AC_MSG_ERROR([M4=$M4 lacks the required Autoconf macro and frozen-state features])])
   AC_CACHE_CHECK([whether $ac_cv_path_M4 accepts --gnu],
     [ac_cv_prog_gnu_m4_gnu],
     [if "$M4" --gnu </dev/null >/dev/null 2>&1; then
