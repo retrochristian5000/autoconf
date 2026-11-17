@@ -73,10 +73,11 @@ GNU M4 1.4.15 and some GNU M4/glibc combinations have strstr bugs.])])])
   AC_MSG_CHECKING([whether $M4 provides required M4 features])
   ac_m4_verified=no
   ac_m4_expected=$(printf '%s\n' ok aXa found)
+  # Protect M4 builtin names from expansion while generating configure.
   ac_m4_actual=$(printf '%s\n' \
-    'changequote(<,>)indir(<ifelse>,<yes>,<yes>,<ok>,<bad>)' \
-    'patsubst(<aba>,<b>,<X>)' \
-    'regexp(<abc>,<b>,<found>)' \
+    'change''quote(<,>)in''dir(<if''else>,<yes>,<yes>,<ok>,<bad>)' \
+    'pat''subst(<aba>,<b>,<X>)' \
+    're''gexp(<abc>,<b>,<found>)' \
     | "$M4" --fatal-warning 2>/dev/null) || ac_m4_actual=
   rm -f conftest.m4f
   if test "$ac_m4_actual" = "$ac_m4_expected" \
@@ -117,9 +118,9 @@ GNU M4 1.4.15 and some GNU M4/glibc combinations have strstr bugs.])])])
     for ac_m4_debug_opt in --debugfile --error-output; do
       rm -f conftest.m4t
       if printf '%s\n' \
-           'changequote(<,>)define(<T>,<>)' \
-           'define(<F>,<T(<traced>)>)' \
-           'm4wrap(<F>)' \
+           'change''quote(<,>)de''fine(<T>,<>)' \
+           'de''fine(<F>,<T(<traced>)>)' \
+           'm4''wrap(<F>)' \
            | "$M4" --trace=T --debug=aflq --fatal-warning \
              "$ac_m4_debug_opt=conftest.m4t" >/dev/null 2>&1 \
          && test -s conftest.m4t \

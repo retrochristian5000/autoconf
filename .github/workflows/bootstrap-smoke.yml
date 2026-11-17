@@ -6,11 +6,15 @@ on:
     paths:
       - 'bootstrap'
       - 'tests/bootstrap-host-paths.sh'
+      - 'm4/m4.m4'
+      - 'tests/m4-configure-smoke.sh'
       - '.github/workflows/bootstrap-smoke.yml'
   pull_request:
     paths:
       - 'bootstrap'
       - 'tests/bootstrap-host-paths.sh'
+      - 'm4/m4.m4'
+      - 'tests/m4-configure-smoke.sh'
       - '.github/workflows/bootstrap-smoke.yml'
 
 permissions:
@@ -29,10 +33,11 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          brew install m4
+          brew install autoconf m4
           echo "$(brew --prefix m4)/bin" >> "$GITHUB_PATH"
       - name: Verify POSIX shell and bootstrap substitution integrity
         shell: bash
         run: |
-          /bin/sh -n bootstrap tests/bootstrap-host-paths.sh
+          /bin/sh -n bootstrap tests/bootstrap-host-paths.sh tests/m4-configure-smoke.sh
           /bin/sh tests/bootstrap-host-paths.sh
+          /bin/sh tests/m4-configure-smoke.sh
