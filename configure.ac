@@ -135,11 +135,9 @@ AC_PATH_PROG([EXPR], [expr])
 ## M4.  ##
 ## ---- ##
 
-# We use an absolute name for GNU m4 so even if users have another m4 first in
-# their path, the installer can configure with a path that has GNU m4
-# on it and get that path embedded in the installed autoconf and
-# autoheader scripts.
-AC_PROG_GNU_M4
+# Resolve an M4 implementation by required features, and embed its
+# absolute executable path so another M4 cannot be selected later.
+AC_PROG_M4
 
 ## ----------- ##
 ## Man pages.  ##
