@@ -8,25 +8,26 @@
 # notice and this notice are preserved.  This file is offered as-is,
 # without warranty of any kind.
 
-# AC_PROG_GNU_M4
-# --------------
-# Check for GNU M4, at least 1.4.8 (all earlier versions had bugs in
-# trace support and regexp support):
+# AC_PROG_M4
+# ----------
+# Select a feature-compatible M4 implementation, including non-GNU
+# implementations that support the M4sugar and autom4te interfaces.
+# GNU M4 versions before 1.4.8 had bugs in trace and regexp support:
 # https://lists.gnu.org/archive/html/bug-gnu-utils/2006-11/msg00096.html
 # https://lists.gnu.org/archive/html/bug-autoconf/2009-07/msg00023.html
 # Also, check whether --error-output (through 1.4.x) or --debugfile (2.0)
 # is supported, and AC_SUBST M4_DEBUGFILE accordingly.
 # Also avoid versions of m4 that trigger strstr bugs.
-AC_DEFUN([AC_PROG_GNU_M4],
-  [AC_ARG_VAR([M4], [Location of GNU M4 1.4.8 or later.  Defaults to the first
-    program of 'm4', 'gm4', or 'gnum4' on PATH that meets Autoconf needs.])
-  AC_CACHE_CHECK([for GNU M4 that supports accurate traces], [ac_cv_path_M4],
+AC_DEFUN([AC_PROG_M4],
+  [AC_ARG_VAR([M4], [Path to a feature-compatible M4 implementation.  Defaults
+    to the first 'm4', 'gm4', or 'gnum4' on PATH meeting Autoconf needs.])
+  AC_CACHE_CHECK([for M4 with accurate tracing and GNU-style macros], [ac_cv_path_M4],
     [rm -f conftest.m4f
 ac_had_posixly_correct=${POSIXLY_CORRECT:+yes}
 AS_UNSET([POSIXLY_CORRECT])
 AC_PATH_PROGS_FEATURE_CHECK([M4], [m4 gm4 gnum4],
       [dnl Creative quoting here to avoid raw dnl and ifdef in configure.
-      # Root out GNU M4 1.4.5, as well as non-GNU m4 that ignore -t, -F.
+      # Reject implementations that ignore required tracing and freeze flags.
       # Root out GNU M4 1.4.15 with buggy false negative replacement strstr.
       # Root out Glibc 2.9 - 2.12 and GNU M4 1.4.11 - 1.4.15 with buggy
       # false positive strstr.
@@ -53,17 +54,18 @@ AC_PATH_PROGS_FEATURE_CHECK([M4], [m4 gm4 gnum4],
               x'm4trace:stdin:3: -1- T(<traced>)' \
       && ac_cv_path_M4=$ac_path_M4 ac_path_M4_found=:
       rm -f conftest.m4f],
-      [AC_MSG_ERROR([no acceptable m4 could be found in \$PATH.
-GNU M4 1.4.8 or later is required; 1.4.16 or newer is recommended.
-GNU M4 1.4.15 uses a buggy replacement strstr on some systems.
-Glibc 2.9 - 2.12 and GNU M4 1.4.11 - 1.4.15 have another strstr bug.])])])
+      [AC_MSG_ERROR([no M4 with the required macro expansion, freeze and trace
+features could be found.  GNU M4 1.4.8+ is supported, and 1.4.16+ is
+recommended; other implementations must pass the same capability probes.
+GNU M4 1.4.15 and some GNU M4/glibc combinations have strstr bugs.])])])
   M4=$ac_cv_path_M4
   AC_CACHE_CHECK([whether $ac_cv_path_M4 accepts --gnu],
     [ac_cv_prog_gnu_m4_gnu],
-    [case `"$M4" --help < /dev/null 2>&1` in
-      *--gnu*) ac_cv_prog_gnu_m4_gnu=yes ;;
-      *) ac_cv_prog_gnu_m4_gnu=no ;;
-    esac])
+    [if "$M4" --gnu </dev/null >/dev/null 2>&1; then
+      ac_cv_prog_gnu_m4_gnu=yes
+    else
+      ac_cv_prog_gnu_m4_gnu=no
+    fi])
   if test "$ac_cv_prog_gnu_m4_gnu" = yes; then
     M4_GNU=--gnu
   else
@@ -72,15 +74,28 @@ Glibc 2.9 - 2.12 and GNU M4 1.4.11 - 1.4.15 have another strstr bug.])])])
   AC_SUBST([M4_GNU])
   if test x$ac_had_posixly_correct = xyes; then
     POSIXLY_CORRECT=:
-    if test $ac_cv_prog_gnu_m4_gnu = no; then
-      AC_MSG_WARN([the version of M4 that was found does not support -g])
+    if test "$ac_cv_prog_gnu_m4_gnu" = no; then
+      AC_MSG_WARN([the selected M4 does not accept --gnu])
       AC_MSG_WARN([using it with POSIXLY_CORRECT set may cause problems])
     fi
   fi
-  AC_CACHE_CHECK([how m4 supports trace files], [ac_cv_prog_gnu_m4_debugfile],
-    [case `"$M4" --help < /dev/null 2>&1` in
-      *debugfile*) ac_cv_prog_gnu_m4_debugfile=--debugfile ;;
-      *) ac_cv_prog_gnu_m4_debugfile=--error-output ;;
-    esac])
+  AC_CACHE_CHECK([how M4 writes trace files], [ac_cv_prog_gnu_m4_debugfile],
+    [ac_cv_prog_gnu_m4_debugfile=none
+    for ac_m4_debug_opt in --debugfile --error-output; do
+      rm -f conftest.m4t
+      if AS_ECHO(["$ac_snip2"]) | "$M4" --trace=T --debug=aflq \
+           "$ac_m4_debug_opt=conftest.m4t" >/dev/null 2>&1 \
+         && test -s conftest.m4t \
+         && grep -F 'T(<traced>)' conftest.m4t >/dev/null 2>&1; then
+        ac_cv_prog_gnu_m4_debugfile=$ac_m4_debug_opt
+        break
+      fi
+    done
+    rm -f conftest.m4t])
+  AS_IF([test "$ac_cv_prog_gnu_m4_debugfile" = none],
+    [AC_MSG_ERROR([selected M4 cannot write required trace files])])
   AC_SUBST([M4_DEBUGFILE], [$ac_cv_prog_gnu_m4_debugfile])
 ])
+
+# Backward-compatible macro name for existing Autoconf consumers.
+AC_DEFUN([AC_PROG_GNU_M4], [AC_REQUIRE([AC_PROG_M4])])
