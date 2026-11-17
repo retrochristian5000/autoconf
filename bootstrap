@@ -91,9 +91,14 @@ done
 # Let the user choose which version of aclocal, automake, m4, and perl to use.
 : ${ACLOCAL=aclocal}
 : ${AUTOMAKE=automake}
-# One minimum-version rule for both preselection and explicit M4.
+# Reject known broken GNU M4 releases, but do not apply GNU version
+# numbering to independent implementations.
 m4_too_old()
 {
+    case "$1" in
+      (*"GNU M4"*) ;;
+      (*) return 1 ;;
+    esac
     case "$1" in
       ( *\ 0.*                \
       | *\ 1.[0123]           \
@@ -105,17 +110,80 @@ m4_too_old()
     esac
 }
 
-# Prefer GNU gm4 if it is new enough. Preserve explicit M4 overrides.
-if test "${M4+set}" != set; then
-    M4=m4
-    if command -v gm4 >/dev/null 2>&1; then
-        gm4_version=$(gm4 --gnu --version 2>/dev/null | sed -n '1p') || gm4_version=
-        case "$gm4_version" in
-          (*"GNU M4"*)
-            if ! m4_too_old "$gm4_version"; then M4=gm4; fi ;;
-        esac
+# Check the interfaces actually used by autom4te and M4sugar.  No
+# implementation is accepted solely because of its name or version.
+# The result is the validated option for writing trace files.
+m4_probe() (
+    m4_binary=$1
+    probe_dir=$(mktemp -d "${TMPDIR:-/tmp}/autoconf-m4.XXXXXXXX") || exit 1
+    trap 'rm -rf "$probe_dir"' 0
+
+    m4_version=$("$m4_binary" --version 2>/dev/null | sed -n '1p') || m4_version=
+    if m4_too_old "$m4_version"; then exit 1; fi
+
+    m4_actual=$(printf '%s\n' \
+        'changequote(<,>)indir(<ifelse>,<yes>,<yes>,<ok>,<bad>)' \
+        'patsubst(<aba>,<b>,<X>)' \
+        'regexp(<abc>,<b>,<found>)' \
+        | "$m4_binary" --fatal-warning 2>/dev/null) || exit 1
+    m4_expected=$(printf '%s\n' ok aXa found)
+    test "$m4_actual" = "$m4_expected" || exit 1
+
+    "$m4_binary" -F "$probe_dir/frozen" </dev/null >/dev/null 2>&1 || exit 1
+    test -s "$probe_dir/frozen" || exit 1
+    m4_actual=$(printf '%s\n' frozen-ok | \
+        "$m4_binary" --reload-state="$probe_dir/frozen" \
+        --fatal-warning 2>/dev/null) || exit 1
+    test "$m4_actual" = frozen-ok || exit 1
+
+    for m4_debug_opt in --debugfile --error-output; do
+        rm -f "$probe_dir/trace"
+        if printf '%s\n' \
+            'changequote(<,>)define(<T>,<>)' \
+            'define(<F>,<T(<traced>)>)' \
+            'm4wrap(<F>)' \
+            | "$m4_binary" --trace=T --debug=aflq \
+                "$m4_debug_opt=$probe_dir/trace" >/dev/null 2>&1 \
+            && test -s "$probe_dir/trace" \
+            && grep -F 'T(<traced>)' "$probe_dir/trace" >/dev/null 2>&1
+        then
+            printf '%s\n' "$m4_debug_opt"
+            exit 0
+        fi
+    done
+    exit 1
+)
+
+# Explicit M4 is authoritative: report failure, never silently replace it.
+if test "${M4+set}" = set; then
+    if ! M4_DEBUGFILE=$(m4_probe "$M4"); then
+        printf '%s\n' "$me: error: M4=$M4 lacks required Autoconf features" >&2
+        exit 1
+    fi
+else
+    M4=
+    for m4_choice in gm4 m4 gnum4; do
+        m4_candidate=$(command -v "$m4_choice") || continue
+        if M4_DEBUGFILE=$(m4_probe "$m4_candidate"); then
+            M4=$m4_candidate
+            break
+        fi
+    done
+    if test -z "$M4"; then
+        printf '%s\n' "$me: error: no feature-compatible M4 found (traces, frozen states and GNU-style macro primitives required)" >&2
+        exit 1
     fi
 fi
+
+# Embed the resolved executable path, not an ambiguous command name.
+m4_resolved=$(command -v "$M4") || {
+    printf '%s\n' "$me: error: cannot resolve M4 executable: $M4" >&2
+    exit 1
+}
+case "$m4_resolved" in
+    (/*) M4=$m4_resolved ;;
+    (*) M4=$(CDPATH= cd -P "$(dirname "$m4_resolved")" && pwd)/$(basename "$m4_resolved") ;;
+esac
 : ${PERL=perl}
 export ACLOCAL AUTOMAKE M4 PERL
 
@@ -142,46 +210,12 @@ else
   BOOTSTRAP_SHELL=/bin/sh
 fi
 
-# Determine whether we have a usable version of GNU M4.
-# This rule is pickier than the rule in autoconf's actual configure script.
-# In particular, do not let macOS /usr/bin/m4 pass merely because it has a
-# plausible version string.  The temporary autom4te below needs GNU M4
-# semantics and later installs embed this exact executable path.
-m4_identity=$("$M4" --gnu --version 2>&1) || {
-    printf '%s\n' \
-      "$me: error: $M4 is not GNU M4 with --gnu support" >&2
-    printf '%s\n' \
-      "$me: set M4 to a GNU M4 executable before bootstrapping Autoconf" >&2
-    exit 1
-}
-case "$m4_identity" in
-  (*"GNU M4"*) ;;
-  (*)
-    printf '%s\n' \
-      "$me: error: $M4 did not identify itself as GNU M4" >&2
-    exit 1
-    ;;
-esac
-m4_version=$(printf '%s\n' "$m4_identity" | sed -n '1p')
-if m4_too_old "$m4_version"; then
-    printf '%s\n' "$me: $M4 ($m4_version) is too old" >&2
-    exit 1
-fi
-
-# Substitutions related to the version of M4 available.
-M4_DEBUGFILE=
+# GNU mode is optional; feature-compatible implementations need not
+# support the GNU-specific flag.  Test the option, not --help text.
 M4_GNU=
-m4_help=$("$M4" --help)
-case "$m4_help" in
-  (*--debugfile*)
-    M4_DEBUGFILE=--debugfile ;;
-  (*--error-output*)
-    M4_DEBUGFILE=--error-output ;;
-esac
-case "$m4_help" in
-  (*--gnu*)
-    M4_GNU=--gnu ;;
-esac
+if "$M4" --gnu </dev/null >/dev/null 2>&1; then
+    M4_GNU=--gnu
+fi
 
 # Autoconf's version number and identifiers.
 RELEASE_YEAR=$(sed -ne 's/^RELEASE_YEAR=\([0-9][0-9]*\)$/\1/p' configure.ac)
