@@ -278,10 +278,45 @@ trap 'rm -rf "$ACBOOTDIR"' 0
 trap 'exit 1' 1 2 3 15
 bootstrap_srcdir=$(pwd -P)
 
-# dosubst options infile outfile -- performs the substitutions that
-# config.status would perform on INFILE, creating OUTFILE.  INFILE is
-# relative to the source directory, OUTFILE is relative to $ACBOOTDIR.
-# If OPTIONS is the letter 'x', OUTFILE is made executable after creation.
+# Prepare config.status-like substitutions once for all bootstrap outputs.
+# A path may contain &, % or backslashes; none may become sed syntax.
+substitutions="$ACBOOTDIR/substitutions.sed"
+: > "$substitutions"
+append_substitution ()
+{
+    subst_key=$1
+    subst_value=$2
+    case "$subst_value" in
+        *'
+'*)
+            printf '%s: error: newline in bootstrap substitution: %s\n' \
+                "$me" "$subst_key" >&2
+            return 1 ;;
+    esac
+    subst_escaped=$(printf '%s' "$subst_value" |
+                    sed 's/[\\&%]/\\&/g') || return 1
+    printf 's%%@%s@%%%s%%g\n' "$subst_key" "$subst_escaped" >> "$substitutions"
+}
+
+append_substitution M4 "$M4"
+append_substitution M4_DEBUGFILE "$M4_DEBUGFILE"
+append_substitution M4_GNU "$M4_GNU"
+append_substitution PACKAGE_BUGREPORT "$PACKAGE_BUGREPORT"
+append_substitution PACKAGE_NAME "$PACKAGE_NAME"
+append_substitution PACKAGE_STRING "$PACKAGE_NAME $VERSION"
+append_substitution PACKAGE_TARNAME "$PACKAGE_TARNAME"
+append_substitution PACKAGE_URL "$PACKAGE_URL"
+append_substitution PACKAGE_VERSION "$VERSION"
+append_substitution PERL "$PERL"
+append_substitution PERL_FLOCK 0
+append_substitution RELEASE_YEAR "$RELEASE_YEAR"
+append_substitution SHELL "$BOOTSTRAP_SHELL"
+append_substitution VERSION "$VERSION"
+append_substitution pkgdatadir "$ACBOOTDIR/lib"
+
+# dosubst options infile outfile -- performs substitutions like config.status.
+# INFILE is relative to the source tree; OUTFILE is relative to $ACBOOTDIR.
+# If OPTIONS is 'x', OUTFILE becomes executable.
 dosubst ()
 {
     in=${2##*/}
@@ -291,22 +326,7 @@ dosubst ()
     fi
     rm -f "$out"
     sed -e "s%@configure_input@%Generated from $in; do not edit by hand.%g" \
-        -e "s%@M4@%$M4%g" \
-        -e "s%@M4_DEBUGFILE@%$M4_DEBUGFILE%g" \
-        -e "s%@M4_GNU@%$M4_GNU%g" \
-        -e "s%@PACKAGE_BUGREPORT@%$PACKAGE_BUGREPORT%g" \
-        -e "s%@PACKAGE_NAME@%$PACKAGE_NAME%g" \
-        -e "s%@PACKAGE_STRING@%$PACKAGE_NAME $VERSION%g" \
-        -e "s%@PACKAGE_TARNAME@%$PACKAGE_TARNAME%g" \
-        -e "s%@PACKAGE_URL@%$PACKAGE_URL%g" \
-        -e "s%@PACKAGE_VERSION@%$VERSION%g" \
-        -e "s%@PERL@%$PERL%g" \
-        -e "s%@PERL_FLOCK@%0%g" \
-        -e "s%@RELEASE_YEAR@%$RELEASE_YEAR%g" \
-        -e "s%@SHELL@%$BOOTSTRAP_SHELL%g" \
-        -e "s%@VERSION@%$VERSION%g" \
-        -e "s%@pkgdatadir@%$ACBOOTDIR/lib%g" \
-        "$2" > "$out"
+        -f "$substitutions" "$2" > "$out"
     if [ "$1" = "x" ]; then
         chmod +x "$out"
     fi

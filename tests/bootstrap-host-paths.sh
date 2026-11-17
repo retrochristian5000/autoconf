@@ -12,7 +12,7 @@ printf '%s\n' 'RELEASE_YEAR=2026' 'm4_define([autoconf_PACKAGE_NAME], [GNU Autoc
 printf '#!/bin/sh\nprintf 2.72\n' > "$base/build-aux/git-version-gen"
 printf '#!/bin/sh\nprintf "autoconf\\n" >> "$TEST_LOG"\n' > "$base/bin/autoconf.in"
 printf '#!/bin/sh\nexit 0\n' > "$base/bin/autom4te.in"
-printf 'mock\n' > "$base/lib/autom4te.in"
+printf 'M4=@M4@\nPERL=@PERL@\n' > "$base/lib/autom4te.in"
 printf 'version @VERSION@\n' > "$base/lib/autoconf_version.in"
 # The wrapper has a non-GNU identity, but offers compatible M4 behavior.
 # This tests vendor-neutral selection, not native BSD M4 compatibility.
@@ -55,6 +55,11 @@ test -d "$base/lib/Autom4te" || exit 2
 printf '%s\n' "$base" >> "$TEST_DIRS"
 echo aclocal >> "$TEST_LOG"
 printf '%s\n' "$M4" >> "$TEST_M4_CHOICES"
+if [ -n "${TEST_EXPECT_M4:-}" ]; then
+    cfg="${AUTOCONF%/bin/autoconf}/lib/autom4te.cfg"
+    grep -Fqx "M4=$TEST_EXPECT_M4" "$cfg" || exit 3
+    grep -Fqx "PERL=$TEST_EXPECT_PERL" "$cfg" || exit 3
+fi
 test "${TEST_FAIL:-0}" != 1
 EOF
 printf '#!/bin/sh\necho automake >> "$TEST_LOG"\n' > "$tmp/tools/automake"
@@ -125,4 +130,24 @@ grep -F 'lacks required Autoconf features' "$tmp/invalid-m4.log" >/dev/null
     "$src/lib/m4sugar/m4sugar.m4" > "$tmp/m4sugar.out"
 test ! -s "$tmp/m4sugar.out"
 
-echo 'PASS: bootstrap feature-based M4 selection, rejected overrides, and cleanup'
+# Paths containing sed replacement metacharacters must be preserved exactly
+# inside generated bootstrap config, then the temporary install cleaned up.
+special_dir="$tmp/special &%\\bin"
+mkdir -p "$special_dir"
+cp "$tmp/tools/m4" "$special_dir/m4"
+chmod +x "$special_dir/m4"
+printf '#!/bin/sh\nexit 0\n' > "$special_dir/perl"
+chmod +x "$special_dir/perl"
+: > "$TEST_DIRS"
+(
+    cd "$base"
+    TEST_EXPECT_M4="$special_dir/m4" TEST_EXPECT_PERL="$special_dir/perl" \
+        M4="$special_dir/m4" PERL="$special_dir/perl" \
+        ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
+        PATH="$tmp/tools:$PATH" /bin/sh ./bootstrap
+)
+while IFS= read -r path; do
+    test ! -e "$path"
+done < "$TEST_DIRS"
+
+echo 'PASS: bootstrap M4 selection, escaped substitutions, and cleanup'
