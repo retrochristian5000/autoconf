@@ -57,6 +57,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # A fork without release tags yields UNKNOWN from git-version-gen.
+          # Supply a temporary CI-only tarball version, as the QEMU staging
+          # builder does. This never enters the repository history.
+          printf '%s\n' '2.72' > .tarball-version
           ./bootstrap
 
       - name: Verify POSIX shell and bootstrap substitution integrity
