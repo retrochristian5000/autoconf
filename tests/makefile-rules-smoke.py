@@ -109,15 +109,19 @@ class MakeRuleTests(unittest.TestCase):
     def test_m4_freeze_preserves_old_state(self):
         self.file("lib/m4sugar/probe.m4", "define([A],[B])\n")
         name = "lib/m4sugar/probe.m4f"
-        self.success(self.make("lib/freeze.mk", name))
+        self.success(self.make("lib/freeze.mk", name,
+                               extra=("MY_AUTOM4TE=python3 mock-autom4te.py",)))
         output = self.root / name
         old = output.read_bytes()
         self.failure(self.make("lib/freeze.mk", name,
-                               fail={"FAIL_AUTOM4TE": "4"}, extra=("-B",)))
+                               fail={"FAIL_AUTOM4TE": "4"},
+                               extra=("-B", "MY_AUTOM4TE=python3 mock-autom4te.py")))
         self.assertEqual(output.read_bytes(), old)
         self.assertFalse((self.root / (name + ".tmp")).exists())
 
     def test_wrapper_preserves_old_script(self):
+        self.file("tests/wrapper.as", "wrapper source\n", src=True)
+        self.file("lib/m4sugar/m4sh.m4f", "frozen\n")
         self.file("tests/wrapper.in", "#!/bin/sh\n@wrap_program@\n")
         self.success(self.make("tests/local.mk", "tests/autoconf"))
         output = self.root / "tests/autoconf"
@@ -130,7 +134,7 @@ class MakeRuleTests(unittest.TestCase):
     def test_install_rule_reports_makeinfo_failure(self):
         text = (ROOT / "Makefile.am").read_text()
         start = text.index("$(srcdir)/INSTALL: $(top_srcdir)/doc/install.texi")
-        end = text.index("\nendif", start)
+        end = text.index("# Generate the ChangeLog from git history.", start)
         recipe = self.file("install-fragment.mk", text[start:end] + "\n")
         self.file("doc/install.texi", "Help text\n")
         self.file("mock-makeinfo.sh",
