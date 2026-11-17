@@ -98,4 +98,10 @@ if (
 fi
 grep -F 'lacks required Autoconf features' "$tmp/invalid-m4.log" >/dev/null
 
+# Exercising M4sugar without GNU's __gnu__ marker catches identity guards.
+# The wrapper delegates to an M4 engine with the required GNU extensions.
+"$tmp/tools/m4" --undefine=__gnu__ -I "$src/lib" \
+    "$src/lib/m4sugar/m4sugar.m4" > "$tmp/m4sugar.out"
+test ! -s "$tmp/m4sugar.out"
+
 echo 'PASS: bootstrap feature-based M4 selection, rejected overrides, and cleanup'
