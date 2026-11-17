@@ -85,7 +85,7 @@ GNU M4 1.4.15 and some GNU M4/glibc combinations have strstr bugs.])])])
     [ac_cv_prog_gnu_m4_debugfile=none
     for ac_m4_debug_opt in --debugfile --error-output; do
       rm -f conftest.m4t
-      if printf '%s\\n' \
+      if printf '%s\n' \
            'changequote(<,>)define(<T>,<>)' \
            'define(<F>,<T(<traced>)>)' \
            'm4wrap(<F>)' \
