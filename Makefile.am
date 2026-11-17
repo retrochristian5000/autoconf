@@ -71,8 +71,8 @@ MAINTAINERCLEANFILES += $(srcdir)/INSTALL
 # Don't leave blank line at end of file.
 OMIT_TRAILING_EMPTY_LINES = '/^$$/H; /^$$/d; x; s/\n//p; s/\n*//; x'
 
+# Makeinfo errors must propagate; preserve the last good INSTALL.
 $(srcdir)/INSTALL: $(top_srcdir)/doc/install.texi
-	# Makeinfo errors must propagate; preserve the last good INSTALL.
 	set -e; \
 	  trap 'rm -f INSTALL-texi.tmp INSTALL-raw.tmp "$@-t"' 0; \
 	  { printf '%s\n' '@firstparagraphindent insert'; \

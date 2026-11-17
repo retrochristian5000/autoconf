@@ -123,8 +123,8 @@ EXTRA_DIST += lib/autoscan/autoscan.pre
 nodist_autoscanlib_DATA = lib/autoscan/autoscan.list
 CLEANFILES += lib/autoscan/autoscan.list
 
+# A pipeline through sort can mask a failed autom4te process.
 lib/autoscan/autoscan.list: $(srcdir)/lib/autoscan/autoscan.pre
-	# A pipeline through sort can mask a failed autom4te process.
 	set -e; \
 	  trap 'rm -f "$@-t" "$@-unsorted"' 0; \
 	  $(MKDIR_P) "$(@D)"; \
