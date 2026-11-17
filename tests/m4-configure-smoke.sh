@@ -13,6 +13,8 @@ for macro in AC_PROG_M4 AC_PROG_GNU_M4; do
     (
         cd "$tmp"
         autoconf -o configure
+        # A configure script must parse before any runtime probe can run.
+        /bin/sh -n ./configure
         M4=$(command -v m4) || exit 1
         export M4
         /bin/sh ./configure > "$tmp/configure.log" 2>&1 || {

@@ -56,10 +56,7 @@ AC_PATH_PROGS_FEATURE_CHECK([M4], [m4 gm4 gnum4],
               x'm4trace:stdin:3: -1- T(<traced>)' \
       && ac_cv_path_M4=$ac_path_M4 ac_path_M4_found=:
       rm -f conftest.m4f],
-      [AC_MSG_ERROR([no M4 with the required macro expansion, freeze and trace
-features could be found.  GNU M4 1.4.8+ is supported, and 1.4.16+ is
-recommended; other implementations must pass the same capability probes.
-GNU M4 1.4.15 and some GNU M4/glibc combinations have strstr bugs.])])])
+      [AC_MSG_ERROR([no feature-compatible M4 found])])])
   M4=$ac_cv_path_M4
   # AC_PATH_PROGS_FEATURE_CHECK skips its feature test when M4 was set
   # explicitly.  Verify the selected executable in both cases; do not
