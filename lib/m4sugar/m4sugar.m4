@@ -1,7 +1,7 @@
 divert(-1)#                                                  -*- Autoconf -*-
 # This file is part of Autoconf.
 # Base M4 layer.
-# Requires GNU M4.
+# Requires GNU M4-compatible macro primitives (implementation-neutral).
 #
 # Copyright (C) 1999-2017, 2020-2026 Free Software Foundation, Inc.
 
@@ -32,13 +32,18 @@ divert(-1)#                                                  -*- Autoconf -*-
 changequote()
 changequote([, ])
 
-# Some old m4's don't support m4exit.  But they provide
-# equivalent functionality by core dumping because of the
-# long macros we define.
-ifdef([__gnu__], ,
-[errprint(M4sugar requires GNU M4. Install it before installing M4sugar or
-set the M4 environment variable to its absolute file name.)
-m4exit(2)])
+# Do not reject an implementation just because it lacks GNU's
+# __gnu__ identity marker.  Verify the primitives M4sugar needs.
+# Autom4te separately tests command-line tracing and frozen states.
+ifdef([indir],, [errprint(M4sugar needs an indir builtin.)m4exit(2)])
+ifdef([patsubst],, [errprint(M4sugar needs a patsubst builtin.)m4exit(2)])
+ifdef([regexp],, [errprint(M4sugar needs a regexp builtin.)m4exit(2)])
+ifdef([builtin],, [errprint(M4sugar needs a builtin builtin.)m4exit(2)])
+ifdef([format],, [errprint(M4sugar needs a format builtin.)m4exit(2)])
+ifdef([debugfile],, [errprint(M4sugar needs a debugfile builtin.)m4exit(2)])
+ifdef([debugmode],, [errprint(M4sugar needs a debugmode builtin.)m4exit(2)])
+ifdef([esyscmd],, [errprint(M4sugar needs an esyscmd builtin.)m4exit(2)])
+ifdef([m4wrap],, [errprint(M4sugar needs an m4wrap builtin.)m4exit(2)])
 
 
 ## ------------------------------- ##
