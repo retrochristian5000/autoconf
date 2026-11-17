@@ -176,7 +176,8 @@ END
   }
 
 # Set up autoconf.
-my $autoconf = "'$autom4te' --language=autoconf ";
+# Quote the selected executable, including prefixes with apostrophes.
+my $autoconf = shell_quote ($autom4te) . ' --language=autoconf ';
 $autoconf .= join (' --include=', '', map { shell_quote ($_) } @include);
 $autoconf .= join (' --prepend-include=', '', map { shell_quote ($_) } @prepend_include);
 $autoconf .= ' --debug' if $debug;
@@ -203,7 +204,15 @@ my $quoted_tmp = shell_quote ($tmp);
 }
 
 local (%verbatim, %symbol);
-debug "$me: 'do'ing $tmp/traces.pl:\n" . `sed 's/^/| /' $quoted_tmp/traces.pl`;
+# Debug output is only needed in verbose debug mode.  Do not invoke an
+# external sed for every autoheader run (including non-debug runs).
+if ($verbose && $debug)
+  {
+    my $traces = new Autom4te::XFile ("$tmp/traces.pl", "<");
+    debug "$me: 'do'ing $tmp/traces.pl:\n"
+      . join ('', map { "| $_" } $traces->getlines);
+    $traces->close;
+  }
 do "$tmp/traces.pl";
 warn "couldn't parse $tmp/traces.pl: $@" if $@;
 unless ($config_h)
