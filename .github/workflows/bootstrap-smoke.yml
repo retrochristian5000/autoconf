@@ -8,6 +8,13 @@ on:
       - 'tests/bootstrap-host-paths.sh'
       - 'm4/m4.m4'
       - 'tests/m4-configure-smoke.sh'
+      - 'Makefile.am'
+      - 'bin/local.mk'
+      - 'lib/local.mk'
+      - 'lib/freeze.mk'
+      - 'man/local.mk'
+      - 'tests/local.mk'
+      - 'tests/makefile-rules-smoke.py'
       - '.github/workflows/bootstrap-smoke.yml'
   pull_request:
     paths:
@@ -15,6 +22,13 @@ on:
       - 'tests/bootstrap-host-paths.sh'
       - 'm4/m4.m4'
       - 'tests/m4-configure-smoke.sh'
+      - 'Makefile.am'
+      - 'bin/local.mk'
+      - 'lib/local.mk'
+      - 'lib/freeze.mk'
+      - 'man/local.mk'
+      - 'tests/local.mk'
+      - 'tests/makefile-rules-smoke.py'
       - '.github/workflows/bootstrap-smoke.yml'
 
 permissions:
@@ -35,6 +49,10 @@ jobs:
         run: |
           brew install autoconf m4
           echo "$(brew --prefix m4)/bin" >> "$GITHUB_PATH"
+      - name: Verify generated-file rules preserve prior outputs on failure
+        shell: bash
+        run: python3 tests/makefile-rules-smoke.py
+
       - name: Verify POSIX shell and bootstrap substitution integrity
         shell: bash
         run: |
