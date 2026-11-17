@@ -14,13 +14,18 @@ printf '#!/bin/sh\nprintf "autoconf\\n" >> "$TEST_LOG"\n' > "$base/bin/autoconf.
 printf '#!/bin/sh\nexit 0\n' > "$base/bin/autom4te.in"
 printf 'mock\n' > "$base/lib/autom4te.in"
 printf 'version @VERSION@\n' > "$base/lib/autoconf_version.in"
+# The wrapper has a non-GNU identity, but offers compatible M4 behavior.
+# This tests vendor-neutral selection, not native BSD M4 compatibility.
+HOST_M4=$(command -v m4)
+export HOST_M4
 cat > "$tmp/tools/gm4" <<'EOF'
 #!/bin/sh
 case "$1" in
-    --gnu) [ "${2:-}" = --version ] && { echo 'GNU M4 1.4.19'; exit 0; } ;;
-    --help) echo '--gnu --debugfile'; exit 0 ;;
+    --version) printf '%s\n' 'Compatible M4 9.0'; exit 0 ;;
+    --help) printf '%s\n' '--debugfile --error-output'; exit 0 ;;
+    --gnu) exit 1 ;;
 esac
-exit 1
+exec "$HOST_M4" "$@"
 EOF
 cat > "$tmp/tools/aclocal" <<'EOF'
 #!/bin/sh
@@ -43,6 +48,7 @@ mkdir -p "$tmp/tmp dir with spaces"
         /bin/sh ./bootstrap
 )
 test "$(cat "$TEST_LOG")" = "$(printf 'aclocal\nautoconf\nautomake')"
+test "$(head -n 1 "$TEST_M4_CHOICES")" = "$tmp/tools/gm4"
 while IFS= read -r path; do
     test ! -e "$path"
 done < "$TEST_DIRS"
@@ -64,10 +70,9 @@ cp "$tmp/tools/gm4" "$tmp/tools/m4"
 cat > "$tmp/tools/gm4" <<'EOF'
 #!/bin/sh
 case "$1" in
-    --gnu) [ "${2:-}" = --version ] && { echo 'GNU M4 1.4.15'; exit 0; } ;;
-    --help) echo '--gnu --debugfile'; exit 0 ;;
+    --version) printf '%s\n' 'GNU M4 1.4.15'; exit 0 ;;
 esac
-exit 1
+exec "$HOST_M4" "$@"
 EOF
 chmod +x "$tmp/tools/gm4"
 (
@@ -76,7 +81,21 @@ chmod +x "$tmp/tools/gm4"
     PATH="$tmp/tools:$PATH" ACLOCAL="$tmp/tools/aclocal" \
         AUTOMAKE="$tmp/tools/automake" /bin/sh ./bootstrap
 )
-test "$(tail -n 1 "$TEST_M4_CHOICES")" = m4 ||
+test "$(tail -n 1 "$TEST_M4_CHOICES")" = "$tmp/tools/m4" ||
     { echo 'old GNU gm4 eclipsed working GNU m4' >&2; exit 1; }
 
-echo 'PASS: bootstrap source paths, GNU M4 versions, and cleanup'
+# An explicitly selected unusable M4 must fail instead of falling back.
+printf '#!/bin/sh\nexit 0\n' > "$tmp/tools/broken-m4"
+chmod +x "$tmp/tools/broken-m4"
+if (
+    cd "$base"
+    M4="$tmp/tools/broken-m4" PATH="$tmp/tools:$PATH" \
+        ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
+        /bin/sh ./bootstrap
+) > "$tmp/invalid-m4.log" 2>&1; then
+    printf '%s\n' 'invalid explicit M4 unexpectedly passed' >&2
+    exit 1
+fi
+grep -F 'lacks required Autoconf features' "$tmp/invalid-m4.log" >/dev/null
+
+echo 'PASS: bootstrap feature-based M4 selection, rejected overrides, and cleanup'
