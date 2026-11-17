@@ -161,24 +161,45 @@ m4_define([AC_LANG_FUNC_LINK_TRY(C)],
 
 /* System header to define __stub macros and hopefully few prototypes,
    which can conflict with char $1 (void); below.  */
-
 #include <limits.h>
 #undef $1
+
+/* Tell Clang to allow disagreement with declaration of builtin $1.  */
+#if defined __clang__ && 4 <= __clang_major__
+# pragma clang diagnostic ignored "-Wincompatible-library-redeclaration"
+#endif
+
+#ifdef _MSC_VER
+
+/* Tell MSVC to link the function without checking its type.  */
+# ifdef _M_IX86 /* x86 */
+#  pragma comment (linker, "/include:_$1")
+# else /* x86_64, arm, arm64 */
+#  pragma comment (linker, "/include:$1")
+# endif
+
+#else
 
 /* Override any GCC internal prototype to avoid an error.
    Use char because int might match the return type of a GCC
    builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
+# ifdef __cplusplus
 extern "C"
-#endif
+# endif
 char $1 (void);
 /* The GNU C library defines this for functions which it implements
     to always fail with ENOSYS.  Some functions are actually named
     something starting with __ and the normal name is an alias.  */
-#if defined __stub_$1 || defined __stub___$1
+# if defined __stub_$1 || defined __stub___$1
 choke me
+# endif
+
 #endif
-], [return $1 ();])])
+], [
+#ifndef _MSC_VER
+return $1 ();
+#endif
+])])
 
 
 # AC_LANG_BOOL_COMPILE_TRY(C)(PROLOGUE, EXPRESSION)
@@ -1730,6 +1751,7 @@ do
   CC="$ac_save_CC $ac_arg"
   _AC_COMPILE_IFELSE([], [ac_cv_prog_cc_c$1=$ac_arg])
   test "x$ac_cv_prog_cc_c$1" != "xno" && break
+  AS_CASE([" $ac_save_CC $CFLAGS"], [[*[[:space:]]-std[:=]*]], [break])
 done
 rm -f conftest.$ac_ext
 CC=$ac_save_CC])
@@ -1779,28 +1801,28 @@ AC_DEFUN([_AC_PROG_CC_C89],
 # as that'd be incompatible with how Automake redefines AC_PROG_CC.  See
 # <https://lists.gnu.org/archive/html/autoconf/2012-10/msg00048.html>.
 AU_DEFUN([AC_PROG_CC_C89],
-  [AC_REQUIRE([AC_PROG_CC])],
+  [AC_PROG_CC],
   [$0 is obsolete; use AC_PROG_CC]
 )
 
 # AC_PROG_CC_C99
 # --------------
 AU_DEFUN([AC_PROG_CC_C99],
-  [AC_REQUIRE([AC_PROG_CC])],
+  [AC_PROG_CC],
   [$0 is obsolete; use AC_PROG_CC]
 )
 
 # AC_PROG_CC_STDC
 # ---------------
 AU_DEFUN([AC_PROG_CC_STDC],
-  [AC_REQUIRE([AC_PROG_CC])],
+  [AC_PROG_CC],
   [$0 is obsolete; use AC_PROG_CC]
 )
 
 # AC_PROG_GCC_TRADITIONAL
 # -----------------------
 AU_DEFUN([AC_PROG_GCC_TRADITIONAL],
-  [AC_REQUIRE([AC_PROG_CC])],
+  [AC_PROG_CC],
   [$0 is obsolete; use AC_PROG_CC]
 )
 
