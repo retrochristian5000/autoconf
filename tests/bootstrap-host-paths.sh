@@ -16,7 +16,28 @@ printf 'mock\n' > "$base/lib/autom4te.in"
 printf 'version @VERSION@\n' > "$base/lib/autoconf_version.in"
 # The wrapper has a non-GNU identity, but offers compatible M4 behavior.
 # This tests vendor-neutral selection, not native BSD M4 compatibility.
-HOST_M4=$(command -v m4)
+# Tests use a real compatible M4 engine beneath the vendor-neutral
+# wrapper.  On macOS the default /usr/bin/m4 may be BSD M4 and insufficient.
+# An explicit HOST_M4 is authoritative; otherwise try available candidates.
+if test -n "${HOST_M4-}"; then
+    command -v "$HOST_M4" >/dev/null 2>&1 || {
+        printf '%s\n' "HOST_M4 executable not found: $HOST_M4" >&2
+        exit 1
+    }
+else
+    HOST_M4=
+    for m4_candidate in gm4 gnum4 m4; do
+        m4_path=$(command -v "$m4_candidate") || continue
+        if "$m4_path" --debug=aflq --fatal-warning </dev/null >/dev/null 2>&1; then
+            HOST_M4=$m4_path
+            break
+        fi
+    done
+    if test -z "$HOST_M4"; then
+        printf '%s\n' 'SKIP: no M4 backend with the required extensions for fixture tests'
+        exit 77
+    fi
+fi
 export HOST_M4
 cat > "$tmp/tools/gm4" <<'EOF'
 #!/bin/sh
