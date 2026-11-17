@@ -136,13 +136,17 @@ special_dir="$tmp/special &%\\bin"
 mkdir -p "$special_dir"
 cp "$tmp/tools/m4" "$special_dir/m4"
 chmod +x "$special_dir/m4"
-printf '#!/bin/sh\nexit 0\n' > "$special_dir/perl"
-chmod +x "$special_dir/perl"
+# A path containing spaces is legitimate for M4, but Perl paths used as
+# shebang interpreters must remain whitespace-free.
+perl_dir="$tmp/perl&%\\bin"
+mkdir -p "$perl_dir"
+printf '#!/bin/sh\nexit 0\n' > "$perl_dir/perl"
+chmod +x "$perl_dir/perl"
 : > "$TEST_DIRS"
 (
     cd "$base"
-    TEST_EXPECT_M4="$special_dir/m4" TEST_EXPECT_PERL="$special_dir/perl" \
-        M4="$special_dir/m4" PERL="$special_dir/perl" \
+    TEST_EXPECT_M4="$special_dir/m4" TEST_EXPECT_PERL="$perl_dir/perl" \
+        M4="$special_dir/m4" PERL="$perl_dir/perl" \
         ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
         PATH="$tmp/tools:$PATH" /bin/sh ./bootstrap
 )

@@ -1,0 +1,38 @@
+name: Autoconf bootstrap source smoke
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'bootstrap'
+      - 'tests/bootstrap-host-paths.sh'
+      - '.github/workflows/bootstrap-smoke.yml'
+  pull_request:
+    paths:
+      - 'bootstrap'
+      - 'tests/bootstrap-host-paths.sh'
+      - '.github/workflows/bootstrap-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-paths:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Select a capable M4 backend
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install m4
+          echo "$(brew --prefix m4)/bin" >> "$GITHUB_PATH"
+      - name: Verify POSIX shell and bootstrap substitution integrity
+        shell: bash
+        run: |
+          /bin/sh -n bootstrap tests/bootstrap-host-paths.sh
+          /bin/sh tests/bootstrap-host-paths.sh
