@@ -49,8 +49,10 @@ AC_PATH_PROGS_FEATURE_CHECK([M4], [m4 gm4 gnum4],
       test -z "`"$ac_path_M4" -F conftest.m4f </dev/null 2>&1`" \
       && test -z "`AS_ECHO(["$ac_snippet"]) | "$ac_path_M4" --trace=mac 2>&1`" \
       && test -f conftest.m4f \
+      && test x"`AS_ECHO([frozen-ok]) | \
+                "$ac_path_M4" --reload-state=conftest.m4f --fatal-warning 2>/dev/null`" = xfrozen-ok \
       && test x"`AS_ECHO(["$ac_snip2"]) | \
-                "$ac_path_M4" --trace=T --debug=aflq 2>&1`" = \
+                "$ac_path_M4" --trace=T --debug=aflq --fatal-warning 2>&1`" = \
               x'm4trace:stdin:3: -1- T(<traced>)' \
       && ac_cv_path_M4=$ac_path_M4 ac_path_M4_found=:
       rm -f conftest.m4f],
@@ -83,8 +85,12 @@ GNU M4 1.4.15 and some GNU M4/glibc combinations have strstr bugs.])])])
     [ac_cv_prog_gnu_m4_debugfile=none
     for ac_m4_debug_opt in --debugfile --error-output; do
       rm -f conftest.m4t
-      if AS_ECHO(["$ac_snip2"]) | "$M4" --trace=T --debug=aflq \
-           "$ac_m4_debug_opt=conftest.m4t" >/dev/null 2>&1 \
+      if printf '%s\\n' \
+           'changequote(<,>)define(<T>,<>)' \
+           'define(<F>,<T(<traced>)>)' \
+           'm4wrap(<F>)' \
+           | "$M4" --trace=T --debug=aflq --fatal-warning \
+             "$ac_m4_debug_opt=conftest.m4t" >/dev/null 2>&1 \
          && test -s conftest.m4t \
          && grep -F 'T(<traced>)' conftest.m4t >/dev/null 2>&1; then
         ac_cv_prog_gnu_m4_debugfile=$ac_m4_debug_opt
