@@ -10,13 +10,15 @@ configuration script for a package from a template file that lists the
 operating system features that the package can use, in the form of M4
 macro calls.
 
-Producing configuration scripts using Autoconf requires GNU M4 and
-Perl.  You should install GNU M4 (version 1.4.8 or later is required;
-1.4.16 or later is recommended) and Perl (5.006 or later) before
-configuring Autoconf, so that Autoconf's configure script can find
-them.  The configuration scripts produced by Autoconf are
-self-contained, so their users do not need to have Autoconf (or GNU
-M4, Perl, etc.).
+Producing configuration scripts using Autoconf requires a macro processor
+with GNU M4-compatible macro expansion, tracing, frozen-state, and debugging
+features, plus Perl.  GNU M4 1.4.8 or later is supported (1.4.16 or later
+is recommended), but a different implementation is allowed when it passes
+the same feature tests.  A stock POSIX/BSD m4 may lack these extensions;
+the implementation name or version alone is not sufficient evidence.
+Install a feature-compatible M4 and Perl (5.006 or later) before configuring
+Autoconf.  Generated configure scripts are self-contained: their users
+do not require Autoconf, M4, or Perl.
 
 You can get GNU M4 here:
 
