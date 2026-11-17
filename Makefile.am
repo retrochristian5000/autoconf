@@ -72,15 +72,17 @@ MAINTAINERCLEANFILES += $(srcdir)/INSTALL
 OMIT_TRAILING_EMPTY_LINES = '/^$$/H; /^$$/d; x; s/\n//p; s/\n*//; x'
 
 $(srcdir)/INSTALL: $(top_srcdir)/doc/install.texi
-	echo @firstparagraphindent insert				\
-	  | cat - $(top_srcdir)/doc/install.texi > tmp.texi
-	$(MAKEINFO) $(custom_MAKEINFOFLAGS)				\
-	     $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS)			\
-	     --plaintext tmp.texi					\
-	  | sed -e $(OMIT_TRAILING_EMPTY_LINES)				\
-	     > $@-t && mv $@-t $@
-	rm -f tmp.texi
-endif
+	# Makeinfo errors must propagate; preserve the last good INSTALL.
+	set -e; \
+	  trap 'rm -f INSTALL-texi.tmp INSTALL-raw.tmp "$@-t"' 0; \
+	  { printf '%s\n' '@firstparagraphindent insert'; \
+	    cat "$(top_srcdir)/doc/install.texi"; } > INSTALL-texi.tmp; \
+	  $(MAKEINFO) $(custom_MAKEINFOFLAGS) \
+	    $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) \
+	    --plaintext INSTALL-texi.tmp > INSTALL-raw.tmp; \
+	  $(SED) -e $(OMIT_TRAILING_EMPTY_LINES) \
+	    INSTALL-raw.tmp >"$@-t"; \
+	  mv -f "$@-t" "$@"
 
 # Generate the ChangeLog from git history.
 gen_start_date = 2012-01-15 18:00:00 UTC

@@ -41,15 +41,18 @@ MY_AUTOM4TE =									\
 # It may happen that the output does not end with an end of line, hence
 # force an end of line when reporting errors.
 .m4.m4f:
-	$(MKDIR_P) $(@D)
-	lang=`echo '$*' | sed 's,.*/,,'` \
-	  && if test $$lang = autoconf; then \
-	       lang=autoconf-without-aclocal-m4; \
-	     else :; fi \
-	  && $(MY_AUTOM4TE) \
-		--language=$$lang \
-		--freeze \
-		--output=$@
+	set -e; \
+	  trap 'rm -f "$@.tmp"' 0; \
+	  $(MKDIR_P) "$(@D)"; \
+	  lang=$$(printf '%s\n' '$*' | sed 's,.*/,,' ); \
+	  if test "$$lang" = autoconf; then \
+	    lang=autoconf-without-aclocal-m4; \
+	  fi; \
+	  $(MY_AUTOM4TE) \
+	    --language="$$lang" \
+	    --freeze \
+	    --output="$@.tmp"; \
+	  mv -f "$@.tmp" "$@"
 
 # Factor the dependencies between all the frozen files.
 # Some day we should explain to Automake how to use autom4te to compute

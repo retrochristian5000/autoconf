@@ -73,12 +73,14 @@ edit_wrapper = sed \
 	-e "s|@configure_input[@]|Generated from $$input.|g"
 
 $(wrappers): tests/wrapper.in
-	rm -f $@ $@.tmp
-	input=tests/wrapper.in \
-	  && $(edit_wrapper) tests/wrapper.in >$@.tmp
-	chmod +x $@.tmp
-	chmod a-w $@.tmp
-	mv -f $@.tmp $@
+	set -e; \
+	  trap 'rm -f "$@.tmp"' 0; \
+	  rm -f "$@.tmp"; \
+	  input=tests/wrapper.in; \
+	  $(edit_wrapper) tests/wrapper.in >"$@.tmp"; \
+	  chmod +x "$@.tmp"; \
+	  chmod a-w "$@.tmp"; \
+	  mv -f "$@.tmp" "$@"
 
 
 
@@ -142,8 +144,10 @@ $(TESTSUITE): tests/package.m4 \
 	      tests/local.at \
 	      $(TESTSUITE_AT) \
 	      lib/autotest/autotest.m4f
-	$(AUTOTEST) $(AUTOTESTFLAGS) suite.at -o $@.tmp
-	mv $@.tmp $@
+	set -e; \
+	  trap 'rm -f "$@.tmp"' 0; \
+	  $(AUTOTEST) $(AUTOTESTFLAGS) suite.at -o "$@.tmp"; \
+	  mv -f "$@.tmp" "$@"
 
 # Factor out invocation of the testsuite script.
 run_testsuite = $(SHELL) $(TESTSUITE) -C tests MAKE=$(MAKE)
