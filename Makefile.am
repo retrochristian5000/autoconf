@@ -83,6 +83,7 @@ $(srcdir)/INSTALL: $(top_srcdir)/doc/install.texi
 	  $(SED) -e $(OMIT_TRAILING_EMPTY_LINES) \
 	    INSTALL-raw.tmp >"$@-t"; \
 	  mv -f "$@-t" "$@"
+endif
 
 # Generate the ChangeLog from git history.
 gen_start_date = 2012-01-15 18:00:00 UTC

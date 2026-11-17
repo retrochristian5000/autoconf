@@ -47,11 +47,17 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          brew install autoconf m4
+          brew install autoconf automake m4
           echo "$(brew --prefix m4)/bin" >> "$GITHUB_PATH"
       - name: Verify generated-file rules preserve prior outputs on failure
         shell: bash
         run: python3 tests/makefile-rules-smoke.py
+
+      - name: Verify real Autoconf bootstrap and Automake syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./bootstrap
 
       - name: Verify POSIX shell and bootstrap substitution integrity
         shell: bash

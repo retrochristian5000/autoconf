@@ -134,7 +134,8 @@ class MakeRuleTests(unittest.TestCase):
     def test_install_rule_reports_makeinfo_failure(self):
         text = (ROOT / "Makefile.am").read_text()
         start = text.index("$(srcdir)/INSTALL: $(top_srcdir)/doc/install.texi")
-        end = text.index("# Generate the ChangeLog from git history.", start)
+        self.assertIn("endif\n\n# Generate the ChangeLog from git history.", text)
+        end = text.index("\nendif", start)
         recipe = self.file("install-fragment.mk", text[start:end] + "\n")
         self.file("doc/install.texi", "Help text\n")
         self.file("mock-makeinfo.sh",
