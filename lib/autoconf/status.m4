@@ -946,8 +946,11 @@ m4_define([_AC_LINK_FILES_CNT], m4_incr(_AC_LINK_FILES_CNT))dnl
 ac_sources="$1"
 ac_dests="$2"
 while test -n "$ac_sources"; do
-  set $ac_dests; ac_dest=$[1]; shift; ac_dests=$[*]
-  set $ac_sources; ac_source=$[1]; shift; ac_sources=$[*]
+  # The first filename may begin with '-', which must not become an
+  # option to the POSIX shell 'set' builtin.  Retain an initial
+  # non-option word for older Bourne shells, then discard it.
+  set x $ac_dests; shift; ac_dest=$[1]; shift; ac_dests=$[*]
+  set x $ac_sources; shift; ac_source=$[1]; shift; ac_sources=$[*]
   [ac_config_links_]_AC_LINK_FILES_CNT="$[ac_config_links_]_AC_LINK_FILES_CNT $ac_dest:$ac_source"
 done
 AC_CONFIG_LINKS($[ac_config_links_]_AC_LINK_FILES_CNT)dnl
