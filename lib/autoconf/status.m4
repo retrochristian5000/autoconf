@@ -399,11 +399,11 @@ rm -f conf$$files.sh
 
 {
   echo "cat >conf$$subs.awk <<_ACEOF" &&
-  echo "$ac_subst_vars" | sed 's/.*/&!$&$ac_delim/' &&
+  printf '%s\n' "$ac_subst_vars" | sed 's/.*/&!  echo "$ac_subst_vars" | sed 's/.*/&!$&$ac_delim/' &&$ac_delim/' &&
   echo "_ACEOF"
 } >conf$$subs.sh ||
   AC_MSG_ERROR([could not make $CONFIG_STATUS])
-ac_delim_num=`echo "$ac_subst_vars" | sed -n '$='`
+ac_delim_num=`printf '%s\n' "$ac_subst_vars" | sed -n '$='`
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   . ./conf$$subs.sh ||

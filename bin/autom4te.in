@@ -92,6 +92,11 @@ my $freeze = 0;
 
 # $M4.
 my $m4 = $ENV{"M4"} || '@M4@';
+# An executable pathname (including Homebrew prefixes with whitespace or
+# shell metacharacters) is one command, not shell words.  Preserve the
+# historical M4='m4 --flag' form when the value is a command with options.
+# Downstream xsystem/xqx/XFile calls append arguments to this shell command.
+$m4 = shell_quote ($m4) if -f $m4 && -x $m4;
 # Some non-GNU m4's don't reject the --help option, so give them /dev/null.
 fatal "need GNU m4 1.4 or later: $m4"
   if system "$m4 --help </dev/null 2>&1 | grep reload-state >/dev/null";
