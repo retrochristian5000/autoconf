@@ -78,7 +78,7 @@ SUFFIXES += .w .1
 	@set -e; \
 	  trap 'rm -f "$@.t" "$@a.t" "$@b.t"' 0; \
 	  $(MKDIR_P) "$(@D)"; \
-	  PATH="$(top_srcdir)/man$(PATH_SEPARATOR)$PATH"; \
+	  PATH="$(top_srcdir)/man$(PATH_SEPARATOR)$$PATH"; \
 	  PERL="$(PERL)"; \
 	  PACKAGE_NAME="$(PACKAGE_NAME)"; \
 	  VERSION='$(VERSION)'; \
