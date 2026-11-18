@@ -157,7 +157,10 @@ class MakeRuleTests(unittest.TestCase):
         end = text.index("\n\nMOSTLYCLEANFILES", start)
         fragment = self.file(
             "man-fragment.mk",
-            ".SUFFIXES: .w .1\n" + text[start:end] +
+            ".SUFFIXES: .w .1\n"
+            "PATH_SEPARATOR = :\n"
+            "remove_time_stamp = -e ''\n"
+            + text[start:end] +
             "\nman/autoconf.1: man/autoconf.w\n",
         )
         self.file("man/autoconf.w", "#!/bin/sh\nexit 0\n")
