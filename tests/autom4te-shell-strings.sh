@@ -31,9 +31,13 @@ trap 'exit 143' 15
 m4_dir="$fixture/m4's tools with spaces"
 mkdir -p "$m4_dir" "$fixture/project"
 ln -s "$m4" "$m4_dir/m4"
+# M4sugar starts with output diverted; enable diversion 0 explicitly so
+# the test checks the expanded contents rather than an empty output file.
 printf '%s\n' \
+    'm4_divert_push([0])' \
     'm4_define([WHP_AUTOM4TE_STRING], [literal\c-string])' \
-    'WHP_AUTOM4TE_STRING' > "$fixture/m4-input.m4"
+    'WHP_AUTOM4TE_STRING' \
+    'm4_divert_pop([0])' > "$fixture/m4-input.m4"
 M4="$m4_dir/m4" "$autom4te" \
     --no-cache --language=M4sugar --output="$fixture/m4-output" \
     "$fixture/m4-input.m4"
