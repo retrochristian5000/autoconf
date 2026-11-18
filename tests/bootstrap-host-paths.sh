@@ -1,6 +1,8 @@
 #!/bin/sh
 # Bootstrap fixture: no system Autoconf required.
 set -eu
+TEST_BOOTSTRAP_SHELL=${TEST_BOOTSTRAP_SHELL:-/bin/sh}
+export TEST_BOOTSTRAP_SHELL
 src=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 tmp=$(mktemp -d "/tmp/autoconf-bootstrap-guard.XXXXXXXX") || exit 1
 trap 'rm -rf "$tmp"' 0
@@ -78,7 +80,7 @@ mkdir -p "$tmp/tmp dir with spaces"
     unset M4
     PATH="$tmp/tools:$PATH" TMPDIR="$tmp/tmp dir with spaces" \
         ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
-        /bin/sh ./bootstrap
+        "$TEST_BOOTSTRAP_SHELL" ./bootstrap
 )
 test "$(cat "$TEST_LOG")" = "$(printf 'aclocal\nautoconf\nautomake')"
 test "$(head -n 1 "$TEST_M4_CHOICES")" = "$tmp/tools/gm4"
@@ -90,7 +92,7 @@ if (
     cd "$base"
     unset M4
     PATH="$tmp/tools:$PATH" TEST_FAIL=1 ACLOCAL="$tmp/tools/aclocal" \
-        AUTOMAKE="$tmp/tools/automake" /bin/sh ./bootstrap
+        AUTOMAKE="$tmp/tools/automake" "$TEST_BOOTSTRAP_SHELL" ./bootstrap
 ) > "$tmp/failure.log" 2>&1; then
     echo 'failing aclocal unexpectedly passed' >&2
     exit 1
@@ -107,7 +109,7 @@ failure_status=0
     unset M4
     PATH="$tmp/tools:$PATH" TEST_FAIL=1 TEST_FAIL_STATUS=17 \
         ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
-        /bin/sh ./bootstrap
+        "$TEST_BOOTSTRAP_SHELL" ./bootstrap
 ) > "$tmp/failure-status.log" 2>&1 || failure_status=$?
 test "$failure_status" -eq 17 || {
     printf 'bootstrap lost command failure status: %s\n' "$failure_status" >&2
@@ -131,7 +133,7 @@ signal_status=0
     unset M4
     PATH="$tmp/tools:$PATH" TEST_INTERRUPT=1 \
         ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
-        /bin/sh -c 'TEST_BOOTSTRAP_PID=$$; export TEST_BOOTSTRAP_PID; exec /bin/sh ./bootstrap'
+        /bin/sh -c 'TEST_BOOTSTRAP_PID=$$; export TEST_BOOTSTRAP_PID; exec "$TEST_BOOTSTRAP_SHELL" ./bootstrap'
 ) > "$tmp/signal.log" 2>&1 || signal_status=$?
 test "$signal_status" -eq 143 || {
     printf 'bootstrap lost SIGTERM status: %s\n' "$signal_status" >&2
@@ -167,7 +169,7 @@ canonical_status=0
     PATH="$tmp/tools:$PATH" TEST_FAIL_CANONICAL=1 \
         TEST_CREATED_DIRS="$tmp/canonical-created" \
         ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
-        /bin/sh ./bootstrap
+        "$TEST_BOOTSTRAP_SHELL" ./bootstrap
 ) > "$tmp/canonical.log" 2>&1 || canonical_status=$?
 test "$canonical_status" -ne 0 || {
     printf '%s\n' 'bootstrap accepted an inaccessible temp directory' >&2
@@ -195,7 +197,7 @@ chmod +x "$tmp/tools/gm4"
     cd "$base"
     unset M4
     PATH="$tmp/tools:$PATH" ACLOCAL="$tmp/tools/aclocal" \
-        AUTOMAKE="$tmp/tools/automake" /bin/sh ./bootstrap
+        AUTOMAKE="$tmp/tools/automake" "$TEST_BOOTSTRAP_SHELL" ./bootstrap
 )
 test "$(tail -n 1 "$TEST_M4_CHOICES")" = "$tmp/tools/m4" ||
     { echo 'old GNU gm4 eclipsed working GNU m4' >&2; exit 1; }
@@ -207,7 +209,7 @@ if (
     cd "$base"
     M4="$tmp/tools/broken-m4" PATH="$tmp/tools:$PATH" \
         ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
-        /bin/sh ./bootstrap
+        "$TEST_BOOTSTRAP_SHELL" ./bootstrap
 ) > "$tmp/invalid-m4.log" 2>&1; then
     printf '%s\n' 'invalid explicit M4 unexpectedly passed' >&2
     exit 1
@@ -238,10 +240,47 @@ chmod +x "$perl_dir/perl"
     TEST_EXPECT_M4="$special_dir/m4" TEST_EXPECT_PERL="$perl_dir/perl" \
         M4="$special_dir/m4" PERL="$perl_dir/perl" \
         ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
-        PATH="$tmp/tools:$PATH" /bin/sh ./bootstrap
+        PATH="$tmp/tools:$PATH" "$TEST_BOOTSTRAP_SHELL" ./bootstrap
 )
 while IFS= read -r path; do
     test ! -e "$path"
 done < "$TEST_DIRS"
 
-printf '%s\n' 'PASS: bootstrap M4 selection, escaped substitutions, and cleanup'
+# Executable pathnames with spaces must remain one argument when passed
+# through a POSIX shell; legacy tool-and-options selectors still work.
+space_tools="$tmp/selected tools with spaces"
+mkdir -p "$space_tools"
+cp "$tmp/tools/aclocal" "$space_tools/aclocal"
+cp "$tmp/tools/automake" "$space_tools/automake"
+chmod +x "$space_tools/aclocal" "$space_tools/automake"
+: > "$TEST_LOG"
+(
+    cd "$base"
+    PATH="$tmp/tools:$PATH" M4="$tmp/tools/m4" \
+        ACLOCAL="$space_tools/aclocal" AUTOMAKE="$space_tools/automake" \
+        "$TEST_BOOTSTRAP_SHELL" ./bootstrap
+)
+test "$(cat "$TEST_LOG")" = "$(printf 'aclocal\nautoconf\nautomake')"
+
+: > "$TEST_LOG"
+(
+    cd "$base"
+    PATH="$tmp/tools:$PATH" M4="$tmp/tools/m4" \
+        ACLOCAL='aclocal --legacy-option' AUTOMAKE='automake --legacy-option' \
+        "$TEST_BOOTSTRAP_SHELL" ./bootstrap
+)
+test "$(cat "$TEST_LOG")" = "$(printf 'aclocal\nautoconf\nautomake')"
+
+# Empty explicit tool selection must not turn -I into a command name.
+if (
+    cd "$base"
+    PATH="$tmp/tools:$PATH" M4="$tmp/tools/m4" ACLOCAL='' \
+        AUTOMAKE="$tmp/tools/automake" \
+        "$TEST_BOOTSTRAP_SHELL" ./bootstrap
+) > "$tmp/empty-aclocal.log" 2>&1; then
+    printf '%s\n' 'empty explicit ACLOCAL unexpectedly succeeded' >&2
+    exit 1
+fi
+grep -F 'aclocal command is empty' "$tmp/empty-aclocal.log" >/dev/null
+
+printf '%s\n' 'PASS: bootstrap M4 selection, escaped substitutions, and cleanup, and shell tool selectors'
