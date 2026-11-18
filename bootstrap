@@ -275,7 +275,7 @@ ACBOOTDIR=$(mktemp -d "$bootstrap_tmpdir/acboot.XXXXXXXXXX") || {
 # Keep the original pathname immutable so the exit trap never uses a partly
 # resolved assignment.
 acboot_created=$ACBOOTDIR
-trap 'rm -rf "$acboot_created"' 0
+trap 'chmod u+rwx "$acboot_created" 2>/dev/null || :; rm -rf "$acboot_created"' 0
 trap 'exit 129' 1
 trap 'exit 130' 2
 trap 'exit 131' 3
