@@ -117,6 +117,11 @@ m4_probe() (
     m4_binary=$1
     probe_dir=$(mktemp -d "${TMPDIR:-/tmp}/autoconf-m4.XXXXXXXX") || exit 1
     trap 'rm -rf "$probe_dir"' 0
+    # A signal must pass through EXIT cleanup with a recognizable status.
+    trap 'exit 129' 1
+    trap 'exit 130' 2
+    trap 'exit 131' 3
+    trap 'exit 143' 15
 
     m4_version=$("$m4_binary" --version 2>/dev/null | sed -n '1p') || m4_version=
     if m4_too_old "$m4_version"; then exit 1; fi
@@ -265,17 +270,23 @@ ACBOOTDIR=$(mktemp -d "$bootstrap_tmpdir/acboot.XXXXXXXXXX") || {
     printf '%s\n' "$me: error: cannot create bootstrap tool directory" >&2
     exit 1
 }
-ACBOOTDIR=$(CDPATH= cd -P "$ACBOOTDIR" && pwd)
+# Register cleanup before canonicalization: cd -P can fail if the temporary
+# directory is deleted or made inaccessible between mktemp and cd.
+# Keep the original pathname immutable so the exit trap never uses a partly
+# resolved assignment.
+acboot_created=$ACBOOTDIR
+trap 'rm -rf "$acboot_created"' 0
+trap 'exit 129' 1
+trap 'exit 130' 2
+trap 'exit 131' 3
+trap 'exit 143' 15
+ACBOOTDIR=$(CDPATH= cd -P "$ACBOOTDIR" && pwd -P) || exit 1
 case "$ACBOOTDIR" in
     *[[:space:]]*)
         printf '%s\n' "$me: error: temporary bootstrap path contains whitespace: $ACBOOTDIR" >&2
-        rm -rf "$ACBOOTDIR"
         exit 1
         ;;
 esac
-# Failure and interrupt cleanup must not leave stale temporary installations.
-trap 'rm -rf "$ACBOOTDIR"' 0
-trap 'exit 1' 1 2 3 15
 bootstrap_srcdir=$(pwd -P)
 
 # Prepare config.status-like substitutions once for all bootstrap outputs.

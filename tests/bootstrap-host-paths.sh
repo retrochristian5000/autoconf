@@ -60,7 +60,14 @@ if [ -n "${TEST_EXPECT_M4:-}" ]; then
     grep -Fqx "M4=$TEST_EXPECT_M4" "$cfg" || exit 3
     grep -Fqx "PERL=$TEST_EXPECT_PERL" "$cfg" || exit 3
 fi
-test "${TEST_FAIL:-0}" != 1
+if test "${TEST_INTERRUPT:-0}" = 1; then
+    kill -TERM "$TEST_BOOTSTRAP_PID" || exit 4
+    exit 0
+fi
+if test "${TEST_FAIL:-0}" = 1; then
+    exit "${TEST_FAIL_STATUS:-1}"
+fi
+exit 0
 EOF
 printf '#!/bin/sh\necho automake >> "$TEST_LOG"\n' > "$tmp/tools/automake"
 chmod +x "$base/bootstrap" "$base/build-aux/git-version-gen" "$tmp/tools/"*
@@ -91,6 +98,84 @@ fi
 while IFS= read -r path; do
     test ! -e "$path"
 done < "$TEST_DIRS"
+# The bootstrap must not replace a failing tool's exit code with the exit
+# trap's rm status. Every created temporary installation must be removed.
+: > "$TEST_DIRS"
+failure_status=0
+(
+    cd "$base"
+    unset M4
+    PATH="$tmp/tools:$PATH" TEST_FAIL=1 TEST_FAIL_STATUS=17 \
+        ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
+        /bin/sh ./bootstrap
+) > "$tmp/failure-status.log" 2>&1 || failure_status=$?
+test "$failure_status" -eq 17 || {
+    printf 'bootstrap lost command failure status: %s\n' "$failure_status" >&2
+    exit 1
+}
+while IFS= read -r path; do
+    test ! -e "$path"
+done < "$TEST_DIRS"
+
+# Inject TERM after aclocal has observed the temporary installation. The
+# extra sh process records its own PID and execs bootstrap with that PID.
+: > "$TEST_DIRS"
+signal_status=0
+(
+    cd "$base"
+    unset M4
+    PATH="$tmp/tools:$PATH" TEST_INTERRUPT=1 \
+        ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
+        /bin/sh -c 'TEST_BOOTSTRAP_PID=$$; export TEST_BOOTSTRAP_PID; exec /bin/sh ./bootstrap'
+) > "$tmp/signal.log" 2>&1 || signal_status=$?
+test "$signal_status" -eq 143 || {
+    printf 'bootstrap lost SIGTERM status: %s\n' "$signal_status" >&2
+    cat "$tmp/signal.log" >&2
+    exit 1
+}
+while IFS= read -r path; do
+    test ! -e "$path"
+done < "$TEST_DIRS"
+
+# Simulate a mktemp success followed by a non-traversable directory. The
+# cleanup trap must already be installed when the canonicalization fails.
+TEST_REAL_MKTEMP=$(command -v mktemp)
+export TEST_REAL_MKTEMP
+cat > "$tmp/tools/mktemp" <<'EOF'
+#!/bin/sh
+case "${TEST_FAIL_CANONICAL:-0}:$2" in
+    1:*/acboot.*)
+        created=$("$TEST_REAL_MKTEMP" "$@") || exit 1
+        chmod 000 "$created" || exit 1
+        printf '%s\n' "$created" >> "$TEST_CREATED_DIRS"
+        printf '%s\n' "$created"
+        exit 0 ;;
+esac
+exec "$TEST_REAL_MKTEMP" "$@"
+EOF
+chmod +x "$tmp/tools/mktemp"
+: > "$tmp/canonical-created"
+canonical_status=0
+(
+    cd "$base"
+    unset M4
+    PATH="$tmp/tools:$PATH" TEST_FAIL_CANONICAL=1 \
+        TEST_CREATED_DIRS="$tmp/canonical-created" \
+        ACLOCAL="$tmp/tools/aclocal" AUTOMAKE="$tmp/tools/automake" \
+        /bin/sh ./bootstrap
+) > "$tmp/canonical.log" 2>&1 || canonical_status=$?
+test "$canonical_status" -ne 0 || {
+    printf '%s\n' 'bootstrap accepted an inaccessible temp directory' >&2
+    exit 1
+}
+test -s "$tmp/canonical-created" || exit 1
+while IFS= read -r path; do
+    test ! -e "$path" || {
+        printf 'bootstrap leaked temp directory after canonicalization failure: %s\n' "$path" >&2
+        exit 1
+    }
+done < "$tmp/canonical-created"
+
 # An obsolete GNU gm4 must not eclipse a working newer GNU m4.
 cp "$tmp/tools/gm4" "$tmp/tools/m4"
 cat > "$tmp/tools/gm4" <<'EOF'
