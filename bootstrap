@@ -385,8 +385,31 @@ run ()
     fi
 }
 
-run aclocal $ACLOCAL -I m4 -Wall -Werror $subverbose $force
-run autoconf $AUTOCONF -Wall -Werror $subverbose $force
-run automake $AUTOMAKE --add-missing --copy -Wall -Werror $subverbose $force
+# Preserve a selected executable pathname as one argument, including when
+# it contains whitespace.  The historical "command options" form remains
+# accepted; only that form undergoes POSIX field splitting, with pathname
+# expansion disabled so a wildcard cannot replace an argument.
+run_selected ()
+(
+    selected_stage=$1
+    selected_command=$2
+    shift 2
+    if test -z "$selected_command"; then
+        printf '%s: error: %s command is empty\n' "$me" "$selected_stage" >&2
+        exit 127
+    fi
+    if selected_path=$(command -v "$selected_command" 2>/dev/null); then
+        run "$selected_stage" "$selected_path" "$@"
+    else
+        set -f
+        # Intentional splitting for a legacy command with arguments.
+        set -- $selected_command "$@"
+        run "$selected_stage" "$@"
+    fi
+)
+
+run_selected aclocal "$ACLOCAL" -I m4 -Wall -Werror $subverbose $force
+run autoconf "$AUTOCONF" -Wall -Werror $subverbose $force
+run_selected automake "$AUTOMAKE" --add-missing --copy -Wall -Werror $subverbose $force
 
 # The EXIT trap removes the temporary bootstrap installation.
