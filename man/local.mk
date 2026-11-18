@@ -75,29 +75,34 @@ SUFFIXES += .w .1
 
 .w.1:
 	@echo "Updating man page $@"
-	$(MKDIR_P) $(@D)
-	PATH="$(top_srcdir)/man$(PATH_SEPARATOR)$$PATH"; \
-	PERL="$(PERL)"; \
-	PACKAGE_NAME="$(PACKAGE_NAME)"; \
-	VERSION='$(VERSION)'; \
-	RELEASE_YEAR="$(RELEASE_YEAR)"; \
-	top_srcdir="$(top_srcdir)"; \
-	channeldefs_pm="$(channeldefs_pm)"; \
-	export PATH PERL PACKAGE_NAME VERSION RELEASE_YEAR; \
-	export top_srcdir channeldefs_pm; \
-	$(HELP2MAN) \
-	    --include=$(srcdir)/$*.x \
-	    --include=$(srcdir)/man/common.x \
+	@set -e; \
+	  trap 'rm -f "$@.t" "$@a.t" "$@b.t"' 0; \
+	  $(MKDIR_P) "$(@D)"; \
+	  PATH="$(top_srcdir)/man$(PATH_SEPARATOR)$PATH"; \
+	  PERL="$(PERL)"; \
+	  PACKAGE_NAME="$(PACKAGE_NAME)"; \
+	  VERSION='$(VERSION)'; \
+	  RELEASE_YEAR="$(RELEASE_YEAR)"; \
+	  top_srcdir="$(top_srcdir)"; \
+	  channeldefs_pm="$(channeldefs_pm)"; \
+	  export PATH PERL PACKAGE_NAME VERSION RELEASE_YEAR; \
+	  export top_srcdir channeldefs_pm; \
+	  $(HELP2MAN) \
+	    --include="$(srcdir)/$*.x" \
+	    --include="$(srcdir)/man/common.x" \
 	    --source='$(PACKAGE_STRING)' \
-	    --output=$@.t $(<F)
-	if $(SED) $(remove_time_stamp) $@ >$@a.t 2>/dev/null && \
-	   $(SED) $(remove_time_stamp) $@.t | cmp $@a.t - >/dev/null 2>&1; then \
-		touch $@; \
-	else \
-		mv $@.t $@; \
-	fi
-	rm -f $@.t $@a.t
-
+	    --output="$@.t" $(<F); \
+	  if test -f "$@"; then \
+	    $(SED) $(remove_time_stamp) "$@" >"$@a.t"; \
+	    $(SED) $(remove_time_stamp) "$@.t" >"$@b.t"; \
+	    if cmp "$@a.t" "$@b.t" >/dev/null 2>&1; then \
+	      touch "$@"; \
+	    else \
+	      mv -f "$@.t" "$@"; \
+	    fi; \
+	  else \
+	    mv -f "$@.t" "$@"; \
+	  fi
 
 MOSTLYCLEANFILES     += $(dist_man_MANS:=.t) $(dist_man_MANS:=a.t)
 MAINTAINERCLEANFILES += $(dist_man_MANS)

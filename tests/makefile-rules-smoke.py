@@ -151,6 +151,53 @@ class MakeRuleTests(unittest.TestCase):
         for path in ("INSTALL-texi.tmp", "INSTALL-raw.tmp", "source/INSTALL-t"):
             self.assertFalse((self.root / path).exists(), path)
 
+    def test_man_page_generator_failure_preserves_existing_page(self):
+        text = (ROOT / "man/local.mk").read_text()
+        start = text.index(".w.1:\n")
+        end = text.index("\n\nMOSTLYCLEANFILES", start)
+        fragment = self.file(
+            "man-fragment.mk",
+            ".SUFFIXES: .w .1\n" + text[start:end] +
+            "\nman/autoconf.1: man/autoconf.w\n",
+        )
+        self.file("man/autoconf.w", "#!/bin/sh\nexit 0\n")
+        self.file(
+            "mock-help2man.sh",
+            "#!/bin/sh\n"
+            "output=\n"
+            "for arg do\n"
+            "  case \"$arg\" in --output=*) output=${arg#--output=} ;; esac\n"
+            "done\n"
+            "[ -n \"$output\" ] || exit 3\n"
+            "printf '%s\\n' \"${MAN_PAGE_TEXT:-generated page}\" >\"$output\"\n"
+            "[ \"${FAIL_HELP2MAN:-0}\" != 1 ] || exit 9\n",
+        )
+        opts = ("-B", "HELP2MAN=/bin/sh mock-help2man.sh")
+        name = "man/autoconf.1"
+        self.success(self.make(fragment, name, extra=opts))
+        output = self.root / name
+        old = output.read_bytes()
+        self.assertEqual(old, b"generated page\n")
+        self.failure(self.make(
+            fragment, name, extra=opts,
+            fail={"FAIL_HELP2MAN": "1", "MAN_PAGE_TEXT": "broken page"},
+        ))
+        self.assertEqual(output.read_bytes(), old)
+        self.failure(self.make(
+            fragment, name,
+            extra=(*opts, "SED=false"),
+            fail={"MAN_PAGE_TEXT": "changed page"},
+        ))
+        self.assertEqual(output.read_bytes(), old)
+        for suffix in (".t", "a.t", "b.t"):
+            self.assertFalse((self.root / (name + suffix)).exists())
+
+        self.success(self.make(
+            fragment, name, extra=opts,
+            fail={"MAN_PAGE_TEXT": "changed page"},
+        ))
+        self.assertEqual(output.read_text(), "changed page\n")
+
     def test_man_pages_retain_shared_dependencies(self):
         text = (ROOT / "man/local.mk").read_text()
         self.assertEqual(text.count("$(man_common_dep)"), 7)
