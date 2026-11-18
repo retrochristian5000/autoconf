@@ -49,7 +49,8 @@ grep -Fx 'literal\c-string' "$fixture/m4-output" >/dev/null || {
 # Autoconf-generated config.status must preserve the literal user value.
 cat > "$fixture/project/configure.ac" <<'EOF'
 AC_INIT([whp-shell-strings], [1])
-AC_SUBST([WHP_LITERAL], [left\c-right -n])
+WHP_LITERAL='left\c-right -n'
+AC_SUBST([WHP_LITERAL])
 AC_CONFIG_FILES([value.txt])
 AC_OUTPUT
 EOF
