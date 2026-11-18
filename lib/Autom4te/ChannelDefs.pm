@@ -428,8 +428,11 @@ Use like this:
 sub merge_WARNINGS (@)
 {
   my $werror = '';
-  my $all_or_none = '';
-  my %warnings;
+  # The warning switches are order-dependent: 'all' and 'none' reset
+  # previously selected categories, while later no-CATEGORY overrides
+  # must remain effective.  In particular, -Wextra-portability can
+  # enable other channels that a later -Wno-portability disables.
+  my @effective;
 
   my @categories = split /,/, $ENV{WARNINGS} || '';
   push @categories, @_;
@@ -442,7 +445,7 @@ sub merge_WARNINGS (@)
         }
       elsif (/^(?:all|none)$/)
         {
-          $all_or_none = $_;
+          @effective = ($_);
         }
       else
         {
@@ -452,28 +455,14 @@ sub merge_WARNINGS (@)
           # syntax for warnings categories.
           /^(no-|)([\w\[\]\/\\!"#$%&'()*+-.:;<=>?@^`{|}~]+)$/
             or die "Invalid warnings category: $_";
-          $warnings{$2} = $1;
+          push @effective, $_;
         }
     }
 
-  my @final_warnings;
-  if ($all_or_none)
-    {
-      push @final_warnings, $all_or_none;
-    }
-  else
-    {
-      foreach (sort keys %warnings)
-        {
-          push @final_warnings, $warnings{$_} . $_;
-        }
-    }
-  if ($werror)
-    {
-      push @final_warnings, $werror;
-    }
-
-  return join (',', @final_warnings);
+  # -Werror is independent of which categories are enabled.  Keep
+  # its last explicit setting after the category switches.
+  push @effective, $werror if $werror;
+  return join (',', @effective);
 }
 
 =item C<set_strictness ($STRICTNESS_NAME)>

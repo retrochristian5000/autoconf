@@ -113,6 +113,11 @@ test "$failure_status" -eq 17 || {
     printf 'bootstrap lost command failure status: %s\n' "$failure_status" >&2
     exit 1
 }
+grep -F 'aclocal failed (status 17; warning policy: -Wall -Werror)' \
+    "$tmp/failure-status.log" >/dev/null || {
+    printf '%s\n' 'bootstrap did not identify the failed warning-gated stage' >&2
+    exit 1
+}
 while IFS= read -r path; do
     test ! -e "$path"
 done < "$TEST_DIRS"
@@ -239,4 +244,4 @@ while IFS= read -r path; do
     test ! -e "$path"
 done < "$TEST_DIRS"
 
-echo 'PASS: bootstrap M4 selection, escaped substitutions, and cleanup'
+printf '%s\n' 'PASS: bootstrap M4 selection, escaped substitutions, and cleanup'

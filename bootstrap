@@ -370,14 +370,23 @@ export AUTOCONF AUTOM4TE
 # Order is critical -- first aclocal, then autoconf, then automake.
 run ()
 {
+    stage=$1
+    shift
     if [ -n "$verbose" ]; then
-        printf '%s: running %s\n' "$me" "$*"
+        printf '%s: %s: running %s\n' "$me" "$stage" "$*"
     fi
-    "$@"
+    if "$@"; then
+        return 0
+    else
+        stage_status=$?
+        printf '%s: error: %s failed (status %s; warning policy: -Wall -Werror)\n' \
+            "$me" "$stage" "$stage_status" >&2
+        return "$stage_status"
+    fi
 }
 
-run $ACLOCAL -I m4 -Wall -Werror $subverbose $force
-run $AUTOCONF -Wall -Werror $subverbose $force
-run $AUTOMAKE --add-missing --copy -Wall -Werror $subverbose $force
+run aclocal $ACLOCAL -I m4 -Wall -Werror $subverbose $force
+run autoconf $AUTOCONF -Wall -Werror $subverbose $force
+run automake $AUTOMAKE --add-missing --copy -Wall -Werror $subverbose $force
 
 # The EXIT trap removes the temporary bootstrap installation.
